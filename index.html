@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copilot Prompt Link Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234285f4'><path d='M12 2L13.09 8.26L22 9L13.09 9.74L12 16L10.91 9.74L2 9L10.91 8.26L12 2Z'/></svg>">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Copilot Prompt Link Generator</h1>
+            <p class="subtitle">Batch-generate clickable Copilot chat links from your prompts</p>
+        </header>
+
+        <main>
+            <div class="input-section">
+                <label for="promptInput">Enter your prompts (one per line, up to 10):</label>
+                <textarea 
+                    id="promptInput" 
+                    placeholder="Paste your prompts here — one per line (up to 10).&#10;Example:&#10;Generate a product landing page for a fitness app&#10;Write a 3-minute bedtime story for children&#10;Design a modern AI chatbot interface"
+                    rows="8"
+                    maxlength="2000"
+                ></textarea>
+                <div class="input-info">
+                    <span id="lineCount">0 lines</span>
+                    <span class="note">💡 Each link opens a new Copilot chat with your prompt pre-filled</span>
+                </div>
+            </div>
+
+            <div class="button-section">
+                <button id="generateBtn" class="primary-btn">✨ Generate Links</button>
+                <button id="clearBtn" class="secondary-btn">🗑️ Clear All</button>
+            </div>
+
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+            <div id="outputSection" class="output-section" style="display: none;">
+                <div class="output-header">
+                    <h3>Generated Links</h3>
+                    <div class="output-buttons">
+                        <button id="openAllBtn" class="open-all-btn">🚀 Open All Links</button>
+                        <button id="copyAllBtn" class="copy-btn">📋 Copy All Links</button>
+                    </div>
+                </div>
+                <div id="outputList" class="output-list"></div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Built with ❤️ for prompt engineers and designers</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
