@@ -6,7 +6,7 @@
 
 **[Try it now!](https://albellatross.github.io/Copilot-Prompt-Link-Generator/)**
 
-[![Deploy Status](https://github.com/albellatross/Copilot-Prompt-Link-Generator/actions/workflows/deploy.yml/badge.svg)](https://github.com/albellatross/Copilot-Prompt-Link-Generator/actions/workflows/deploy.yml)
+> 📝 Note: If you see a 404 error, GitHub Pages might still be setting up. Please wait a few minutes and try again, or check the repository settings to enable GitHub Pages.
 
 ## Features
 
