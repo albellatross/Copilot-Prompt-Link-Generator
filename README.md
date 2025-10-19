@@ -2,6 +2,12 @@
 
 🤖 A lightweight web tool for batch-generating clickable Copilot chat links from prompts.
 
+## 🌐 Live Demo
+
+**[Try it now!](https://albellatross.github.io/Copilot-Prompt-Link-Generator/)**
+
+[![Deploy Status](https://github.com/albellatross/Copilot-Prompt-Link-Generator/actions/workflows/deploy.yml/badge.svg)](https://github.com/albellatross/Copilot-Prompt-Link-Generator/actions/workflows/deploy.yml)
+
 ## Features
 
 - **Batch Processing**: Generate up to 10 Copilot links at once
@@ -63,14 +69,18 @@ copilot-prompt-link-generator/
 
 ## Installation
 
-### Option 1: Direct Use
-1. Download all files to a folder
+### Option 1: Use Online (Recommended)
+🌐 **[Open Live Demo](https://albellatross.github.io/Copilot-Prompt-Link-Generator/)**
+
+### Option 2: Download and Use Locally
+1. Download the latest release or clone this repository
 2. Open `index.html` in your web browser
 3. Start using immediately!
 
-### Option 2: Local Server (Optional)
+### Option 3: Local Development Server
 ```bash
-# If you prefer running a local server
+git clone https://github.com/albellatross/Copilot-Prompt-Link-Generator.git
+cd Copilot-Prompt-Link-Generator
 python -m http.server 8000
 # Then visit: http://localhost:8000
 ```
