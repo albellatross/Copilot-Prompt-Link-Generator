@@ -11,9 +11,11 @@
 > 2. Click on **Settings** tab
 > 3. Scroll down to **Pages** section
 > 4. Under **Source**, select **Deploy from a branch**
-> 5. Choose **master** branch and **/ (root)** folder, OR choose **docs** folder
+> 5. Choose **master** branch and **docs** folder (recommended)
 > 6. Click **Save**
 > 7. Wait 2-5 minutes for deployment
+> 
+> ✅ **Using the `docs` folder is the recommended GitHub Pages deployment method**
 > 
 > The website will then be available at the link above!
 
