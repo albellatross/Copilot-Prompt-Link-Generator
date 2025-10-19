@@ -6,7 +6,16 @@
 
 **[Try it now!](https://albellatross.github.io/Copilot-Prompt-Link-Generator/)**
 
-> 📝 Note: If you see a 404 error, GitHub Pages might still be setting up. Please wait a few minutes and try again, or check the repository settings to enable GitHub Pages.
+> 📝 **If you see a 404 error**, please follow these steps to enable GitHub Pages:
+> 1. Go to your GitHub repository: https://github.com/albellatross/Copilot-Prompt-Link-Generator
+> 2. Click on **Settings** tab
+> 3. Scroll down to **Pages** section
+> 4. Under **Source**, select **Deploy from a branch**
+> 5. Choose **master** branch and **/ (root)** folder, OR choose **docs** folder
+> 6. Click **Save**
+> 7. Wait 2-5 minutes for deployment
+> 
+> The website will then be available at the link above!
 
 ## Features
 
