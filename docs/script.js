@@ -13,7 +13,20 @@ class CopilotLinkGenerator {
         this.clearBtn = document.getElementById('clearBtn');
         this.copyAllBtn = document.getElementById('copyAllBtn');
         this.openAllBtn = document.getElementById('openAllBtn');
-        this.lineCount = document.getElementById('lineCount');
+    this.lineCount = document.getElementById('lineCount');
+    // Advanced elements
+    this.copyAutomationBtn = document.getElementById('copyAutomationBtn');
+    this.bookmarkletBtn = document.getElementById('bookmarkletBtn');
+    this.delayInput = document.getElementById('delayInput');
+    this.langToggleBtn = document.getElementById('langToggleBtn');
+    this.scriptPreviewWrapper = document.getElementById('scriptPreviewWrapper');
+    this.scriptPreview = document.getElementById('scriptPreview');
+    this.refreshPreviewBtn = document.getElementById('refreshPreviewBtn');
+    this.copyPreviewBtn = document.getElementById('copyPreviewBtn');
+    this.togglePreviewBtn = document.getElementById('togglePreviewBtn');
+    this.maxCountInput = document.getElementById('maxCountInput');
+    this.advancedToggleBtn = document.getElementById('advancedToggleBtn');
+    this.advancedPanel = document.getElementById('advancedPanel');
         this.errorMessage = document.getElementById('errorMessage');
         this.outputSection = document.getElementById('outputSection');
         this.outputList = document.getElementById('outputList');
@@ -32,6 +45,16 @@ class CopilotLinkGenerator {
         this.clearBtn.addEventListener('click', () => this.clearAll());
         this.copyAllBtn.addEventListener('click', () => this.copyAllLinks());
         this.openAllBtn.addEventListener('click', () => this.openAllLinks());
+    if (this.copyAutomationBtn) this.copyAutomationBtn.addEventListener('click', () => this.copyAutomationScript());
+    if (this.bookmarkletBtn) this.bookmarkletBtn.addEventListener('click', () => this.generateBookmarklet());
+    if (this.delayInput) this.delayInput.addEventListener('change', () => this.updateScriptPreview());
+    if (this.langToggleBtn) this.langToggleBtn.addEventListener('click', () => this.toggleLanguage());
+    if (this.refreshPreviewBtn) this.refreshPreviewBtn.addEventListener('click', () => this.updateScriptPreview());
+    if (this.copyPreviewBtn) this.copyPreviewBtn.addEventListener('click', () => this.copyPreviewScript());
+    if (this.togglePreviewBtn) this.togglePreviewBtn.addEventListener('click', () => this.togglePreview());
+    if (this.advancedToggleBtn) this.advancedToggleBtn.addEventListener('click', () => this.toggleAdvanced());
+    const savedLang = localStorage.getItem('copilot_lang');
+    if (savedLang && ['zh','en'].includes(savedLang)) { this.currentLang = savedLang; this.updateLangTexts(); }
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -92,8 +115,11 @@ class CopilotLinkGenerator {
         }
 
         this.hideError();
-        this.renderOutput(lines);
+        const limited = this.applyMaxCount(lines);
+        this.renderOutput(limited.prompts);
         this.showOutput();
+        this.updateScriptPreview();
+        if (this.scriptPreviewWrapper) this.scriptPreviewWrapper.style.display = 'block';
     }
 
     renderOutput(prompts) {
@@ -424,6 +450,7 @@ class CopilotLinkGenerator {
         this.generatedUrls = []; // Clear stored URLs
         this.resetOpenAllButton(); // Reset button state
         this.clearHelpElements(); // Clear help elements
+        this.updateScriptPreview();
     }
 
     clearHelpElements() {
@@ -567,6 +594,22 @@ class CopilotLinkGenerator {
         const text = this.promptInput.value.trim();
         return text ? text.split('\n').map(line => line.trim()).filter(line => line.length > 0) : [];
     }
+
+    // Advanced feature helpers
+    getDelay() { if (!this.delayInput) return 2500; const v=parseInt(this.delayInput.value,10); return isNaN(v)?2500:Math.max(300,v); }
+    getMaxCount(){ if(!this.maxCountInput) return 100; const v=parseInt(this.maxCountInput.value,10); return isNaN(v)?100:Math.max(1,Math.min(100,v)); }
+    applyMaxCount(prompts){ const max=this.getMaxCount(); return prompts.length>max?{prompts:prompts.slice(0,max),truncated:true}:{prompts,truncated:false}; }
+    buildAutomationScript(prompts){ const delay=this.getDelay(); const esc=prompts.map(p=>p.replace(/`/g,'\\`')); return `// Auto Script\n(async()=>{const prompts=[${esc.map(p=>`\`${p}\``).join(',')}];const wait=ms=>new Promise(r=>setTimeout(r,ms));const find=()=>document.querySelector('textarea,[contenteditable=\"true\"]');let stop=false;window.addEventListener('keydown',e=>{if(e.key==='Escape'){stop=true;console.warn('STOP');}});for(let i=0;i<prompts.length;i++){if(stop)break;let el=find();if(!el){console.error('No input');break;}if(el.tagName==='TEXTAREA'){el.value=prompts[i];el.dispatchEvent(new Event('input',{bubbles:true}));}else{el.textContent=prompts[i];el.dispatchEvent(new Event('input',{bubbles:true}));}await wait(150);el.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',which:13,keyCode:13,bubbles:true}));await wait(${delay});}console.log('Done');})();`; }
+    updateScriptPreview(){ if(!this.scriptPreview) return; const prompts=this.getPrompts(); if(!prompts.length){ this.scriptPreview.textContent=this.t?this.t('previewEmpty'):'暂无脚本预览'; return;} const limited=this.applyMaxCount(prompts); this.scriptPreview.textContent=this.buildAutomationScript(limited.prompts).substring(0,4000); }
+    togglePreview(){ if(!this.scriptPreview) return; const collapsed=this.scriptPreview.classList.toggle('collapsed'); if(this.togglePreviewBtn) this.togglePreviewBtn.textContent=collapsed? (this.currentLang==='en'?'📂 Expand':'📂 展开') : (this.currentLang==='en'?'📂 Collapse':'📂 折叠'); }
+    toggleAdvanced(){ if(!this.advancedPanel) return; const visible=this.advancedPanel.style.display!=='none'; this.advancedPanel.style.display=visible?'none':'block'; if(this.advancedToggleBtn) this.advancedToggleBtn.textContent=visible?'⚙️ Advanced':'⚙️ Hide'; }
+    copyAutomationScript(){ const prompts=this.applyMaxCount(this.getPrompts()).prompts; if(!prompts.length){ this.showError('请输入至少一个 Prompt'); return;} const script=this.buildAutomationScript(prompts); this.copyToClipboard(script); this.showSuccessMessage('自动脚本已复制'); }
+    generateBookmarklet(){ const prompts=this.applyMaxCount(this.getPrompts()).prompts; if(!prompts.length){ this.showError('请输入 Prompt'); return;} const esc=prompts.map(p=>p.replace(/`/g,'\\`')); const delay=this.getDelay(); const code=`(function(){const host=location.hostname;function inject(ps){let i=0;const w=ms=>new Promise(r=>setTimeout(r,ms));const f=()=>document.querySelector('textarea,[contenteditable=\"true\"]');async function run(){for(;i<ps.length;i++){let el=f();if(!el){console.error('No input');break;}if(el.tagName==='TEXTAREA'){el.value=ps[i];el.dispatchEvent(new Event('input',{bubbles:true}));}else{el.textContent=ps[i];el.dispatchEvent(new Event('input',{bubbles:true}));}await w(150);el.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',which:13,keyCode:13,bubbles:true}));await w(${delay});}console.log('Done');}run();}if(!/copilot\\.microsoft\\.com$/.test(host)){window.open('https://copilot.microsoft.com/chats/new','_blank');setTimeout(()=>{alert('在新标签再次点击书签开始发送');},400);}else{inject([${esc.map(p=>"`"+p+"`").join(',')}]);}})();`; const bookmarklet='javascript:'+encodeURIComponent(code); let info=document.getElementById('bookmarkletInfo'); if(!info){ const outputHeader=document.querySelector('.output-header'); info=document.createElement('div'); info.id='bookmarkletInfo'; info.style.marginTop='0.5rem'; info.style.fontSize='0.8rem'; info.style.color='#555'; outputHeader.appendChild(info);} info.innerHTML=`拖动到书签栏：<a href="${bookmarklet}" style="color:#e52e71;font-weight:600;">🔖 Copilot批量发送</a>`; this.showSuccessMessage('Bookmarklet 已生成'); }
+    i18n={ zh:{ previewEmpty:'暂无脚本预览', generate:'✨ 生成链接', clear:'🗑️ 清空' }, en:{ previewEmpty:'No script preview', generate:'✨ Generate Links', clear:'🗑️ Clear All' } };
+    currentLang='zh';
+    t(key){ const pack=this.i18n[this.currentLang]; return pack[key]||key; }
+    toggleLanguage(){ this.currentLang=this.currentLang==='zh'?'en':'zh'; this.updateLangTexts(); this.updateScriptPreview(); try{localStorage.setItem('copilot_lang',this.currentLang);}catch(_){} }
+    updateLangTexts(){ const map={ promptLabel:{sel:'label[for="promptInput"]', zh:'输入你的 Prompts (每行一个, 最多 10):', en:'Enter your prompts (one per line, up to 10):'}, generateBtn:{sel:'#generateBtn', zh:'✨ 生成链接', en:'✨ Generate Links'}, clearBtn:{sel:'#clearBtn', zh:'🗑️ 清空', en:'🗑️ Clear All'}, outputTitle:{sel:'.output-header h3', zh:'生成的链接', en:'Generated Links'}, delayLabel:{sel:'.delay-label', zh:'发送间隔(ms):', en:'Delay(ms):'}, maxLabel:{sel:'.maxcount-label', zh:'最大条数:', en:'Max:'}, previewTitle:{sel:'.preview-title', zh:'脚本预览 / Script Preview', en:'Script Preview'} }; Object.values(map).forEach(m=>{const el=document.querySelector(m.sel); if(el) el.textContent=m[this.currentLang];}); if(this.langToggleBtn) this.langToggleBtn.textContent=this.currentLang==='zh'?'🌐 中文 / EN':'🌐 EN / 中文'; if(this.togglePreviewBtn) this.togglePreviewBtn.textContent=this.scriptPreview&&this.scriptPreview.classList.contains('collapsed')? (this.currentLang==='zh'?'📂 展开':'📂 Expand') : (this.currentLang==='zh'?'📂 折叠':'📂 Collapse'); }
 }
 
 // Initialize the application when DOM is loaded

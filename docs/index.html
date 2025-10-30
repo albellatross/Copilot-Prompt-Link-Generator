@@ -32,6 +32,34 @@
             <div class="button-section">
                 <button id="generateBtn" class="primary-btn">✨ Generate Links</button>
                 <button id="clearBtn" class="secondary-btn">🗑️ Clear All</button>
+                <button id="advancedToggleBtn" class="secondary-btn" title="显示/隐藏高级选项">⚙️ Advanced</button>
+            </div>
+
+            <div id="advancedPanel" class="advanced-panel" style="display:none;">
+                <div class="advanced-row">
+                    <div class="delay-setting">
+                        <label for="delayInput" class="delay-label">发送间隔(ms):</label>
+                        <input id="delayInput" type="number" min="500" step="100" value="2500" class="delay-input" />
+                        <label for="maxCountInput" class="maxcount-label">最大条数:</label>
+                        <input id="maxCountInput" type="number" min="1" max="100" step="1" value="100" class="maxcount-input" />
+                    </div>
+                    <button id="langToggleBtn" class="lang-btn" title="切换语言">🌐 中文 / EN</button>
+                </div>
+                <div class="advanced-row">
+                    <div class="output-buttons compact">
+                        <button id="copyAutomationBtn" class="automation-btn" title="复制自动发送脚本">🛠️ 自动脚本</button>
+                        <button id="bookmarkletBtn" class="bookmarklet-btn" title="生成书签">🔖 Bookmarklet</button>
+                    </div>
+                </div>
+                <div class="script-preview-wrapper" id="scriptPreviewWrapper" style="display:none;">
+                    <h4 class="preview-title">脚本预览 / Script Preview</h4>
+                    <div class="preview-controls">
+                        <button id="refreshPreviewBtn" class="secondary-btn small-btn" title="刷新预览">🔄 刷新</button>
+                        <button id="copyPreviewBtn" class="copy-btn small-btn" title="复制预览">📋 复制</button>
+                        <button id="togglePreviewBtn" class="secondary-btn small-btn" title="折叠/展开">📂 折叠</button>
+                    </div>
+                    <pre id="scriptPreview" class="script-preview"></pre>
+                </div>
             </div>
 
             <div id="errorMessage" class="error-message" style="display: none;"></div>
