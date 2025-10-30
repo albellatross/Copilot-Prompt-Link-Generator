@@ -615,6 +615,7 @@ class CopilotLinkGenerator {
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.copilotGenerator = new CopilotLinkGenerator();
+    console.log('[Copilot Prompt Link Generator] Version:', window.APP_VERSION || 'dev');
     
     // Check popup support and show helpful tip
     window.copilotGenerator.checkPopupSupport();
