@@ -13,6 +13,18 @@ class CopilotLinkGenerator {
         this.clearBtn = document.getElementById('clearBtn');
         this.copyAllBtn = document.getElementById('copyAllBtn');
         this.openAllBtn = document.getElementById('openAllBtn');
+        this.copyAutomationBtn = document.getElementById('copyAutomationBtn');
+        this.bookmarkletBtn = document.getElementById('bookmarkletBtn');
+        this.delayInput = document.getElementById('delayInput');
+        this.langToggleBtn = document.getElementById('langToggleBtn');
+        this.scriptPreviewWrapper = document.getElementById('scriptPreviewWrapper');
+        this.scriptPreview = document.getElementById('scriptPreview');
+        this.refreshPreviewBtn = document.getElementById('refreshPreviewBtn');
+        this.copyPreviewBtn = document.getElementById('copyPreviewBtn');
+    this.togglePreviewBtn = document.getElementById('togglePreviewBtn');
+    this.maxCountInput = document.getElementById('maxCountInput');
+    this.advancedToggleBtn = document.getElementById('advancedToggleBtn');
+    this.advancedPanel = document.getElementById('advancedPanel');
         this.lineCount = document.getElementById('lineCount');
         this.errorMessage = document.getElementById('errorMessage');
         this.outputSection = document.getElementById('outputSection');
@@ -32,6 +44,27 @@ class CopilotLinkGenerator {
         this.clearBtn.addEventListener('click', () => this.clearAll());
         this.copyAllBtn.addEventListener('click', () => this.copyAllLinks());
         this.openAllBtn.addEventListener('click', () => this.openAllLinks());
+    this.copyAutomationBtn.addEventListener('click', () => this.copyAutomationScript());
+    this.bookmarkletBtn.addEventListener('click', () => this.generateBookmarklet());
+    if (this.delayInput) this.delayInput.addEventListener('change', () => this.updateScriptPreview());
+    if (this.langToggleBtn) this.langToggleBtn.addEventListener('click', () => this.toggleLanguage());
+    if (this.refreshPreviewBtn) this.refreshPreviewBtn.addEventListener('click', () => this.updateScriptPreview());
+    if (this.copyPreviewBtn) this.copyPreviewBtn.addEventListener('click', () => this.copyPreviewScript());
+        if (this.togglePreviewBtn) this.togglePreviewBtn.addEventListener('click', () => this.togglePreview());
+    if (this.advancedToggleBtn) this.advancedToggleBtn.addEventListener('click', () => this.toggleAdvanced());
+        // Load persisted language
+        const savedLang = localStorage.getItem('copilot_lang');
+        if (savedLang && ['zh','en'].includes(savedLang)) {
+            this.currentLang = savedLang;
+            this.updateLangTexts();
+        }
+        // Listen for handshake messages if bookmarklet new tab opened
+        window.addEventListener('message', (e) => {
+            if (!e.data || typeof e.data !== 'object') return;
+            if (e.data.type === 'REQUEST_PROMPTS') {
+                e.source.postMessage({ type: 'PROMPTS', prompts: this.getPrompts(), delay: this.getDelay(), max: this.getMaxCount() }, '*');
+            }
+        });
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -91,9 +124,16 @@ class CopilotLinkGenerator {
             return;
         }
 
+        // Apply max count safety limit
+        const limited = this.applyMaxCount(lines);
+        if (limited.truncated) {
+            this.showSuccessMessage(this.t('limitedTo') + ' ' + limited.prompts.length);
+        }
         this.hideError();
-        this.renderOutput(lines);
+        this.renderOutput(limited.prompts);
         this.showOutput();
+        this.updateScriptPreview();
+        if (this.scriptPreviewWrapper) this.scriptPreviewWrapper.style.display = 'block';
     }
 
     renderOutput(prompts) {
@@ -379,6 +419,53 @@ class CopilotLinkGenerator {
         }
     }
 
+    // Generate an automation script that can be pasted into https://copilot.microsoft.com single chat page console
+    copyAutomationScript() {
+        const prompts = this.getPrompts();
+        if (!prompts.length) {
+            this.showError('请先生成或输入至少一个 Prompt');
+            return;
+        }
+        // Script: sequentially fill textarea/input, dispatch input/change events and simulate Enter key
+        // We wrap in an async IIFE for clarity
+        const limited = this.applyMaxCount(prompts);
+        const usedPrompts = limited.prompts;
+        const escapedPrompts = usedPrompts.map(p => p.replace(/`/g, '\`'));
+        const dynDelay = this.getDelay();
+        const automationScript = `// === Copilot 自动发送脚本 ===\n// 用法: 在单个 Copilot 会话页面 (https://copilot.microsoft.com/) 打开开发者工具 Console 粘贴后回车执行\n// 它会依次发送下面的 ${prompts.length} 个提示。可随时按 Esc 停止。\n(async () => {\n  const prompts = [\n    ${escapedPrompts.map(p => `\`${p}\``).join(',\n    ')}\n  ];\n  const delay = (ms) => new Promise(r => setTimeout(r, ms));\n  const findInput = () => document.querySelector('textarea, [contenteditable="true"]');\n  let stop = false;\n  window.addEventListener('keydown', e => { if (e.key === 'Escape') { stop = true; console.warn('停止自动发送'); } });\n  for (let i = 0; i < prompts.length; i++) {\n    if (stop) break;\n    const p = prompts[i];\n    let inputEl = findInput();\n    if (!inputEl) { console.error('未找到输入框'); break; }\n    // 设定内容\n    if (inputEl.tagName === 'TEXTAREA') { inputEl.value = p; inputEl.dispatchEvent(new Event('input', { bubbles: true })); }\n    else { inputEl.textContent = p; inputEl.dispatchEvent(new Event('input', { bubbles: true })); }\n    // 模拟按 Enter\n    await delay(200);\n    const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', which: 13, keyCode: 13, bubbles: true });\n    inputEl.dispatchEvent(enterEvent);\n    console.log('已发送 Prompt', i + 1, '/', prompts.length);\n    await delay(2500); // 等待回答生成，可自行调整\n  }\n  console.log('全部完成');\n})();`;
+        this.copyToClipboard(automationScript);
+        this.showSuccessMessage('已复制自动发送脚本 ✅');
+    }
+
+    generateBookmarklet() {
+        const prompts = this.getPrompts();
+        if (!prompts.length) {
+            this.showError('请先输入 Prompt');
+            return;
+        }
+        // Minimal bookmarklet: open copilot page then inject sequential sender after load.
+        // Because bookmarklets execute in current page, user需先在 Copilot 页面使用，或我们尝试 window.open 然后提示用户粘贴？
+        // 更通用：生成一个可拖到书签栏的链接，点它时如果当前不是 copilot.microsoft.com 就打开，再延迟注入。
+        const limited = this.applyMaxCount(prompts);
+        const used = limited.prompts.map(p => p.replace(/`/g,'\`'));
+        const dynDelay = this.getDelay();
+        // Handshake-enabled bookmarklet: if not on copilot, open new tab then instruct; if on copilot, if opener has prompts send REQUEST_PROMPTS
+        const code = `(function(){const host=location.hostname;function inject(ps,delay){let i=0;const d=ms=>new Promise(r=>setTimeout(r,ms));const f=()=>document.querySelector('textarea,[contenteditable=\"true\"]');async function run(){for(;i<ps.length;i++){let el=f();if(!el){console.error('No input element');break;}if(el.tagName==='TEXTAREA'){el.value=ps[i];el.dispatchEvent(new Event('input',{bubbles:true}));}else{el.textContent=ps[i];el.dispatchEvent(new Event('input',{bubbles:true}));}await d(150);el.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',which:13,keyCode:13,bubbles:true}));await d(delay);}console.log('Done');}run();}if(!/copilot\.microsoft\.com$/.test(host)){const w=window.open('https://copilot.microsoft.com/chats/new','_blank');setTimeout(()=>{alert('新标签已打开，如未自动开始，请在新标签再次点击书签。');},400);}else{if(window.opener){try{window.opener.postMessage({type:'REQUEST_PROMPTS'},'*');window.addEventListener('message',function handler(e){if(e.data&&e.data.type==='PROMPTS'){window.removeEventListener('message',handler);inject(e.data.prompts.slice(0,e.data.max),e.data.delay);}});}catch(e){inject([${used.map(p=>"`"+p+"`").join(',')}],${dynDelay});}}else{inject([${used.map(p=>"`"+p+"`").join(',')}],${dynDelay});}}})();`;
+        const bookmarklet = 'javascript:' + encodeURIComponent(code);
+        const outputHeader = document.querySelector('.output-header');
+        let info = document.getElementById('bookmarkletInfo');
+        if (!info) {
+            info = document.createElement('div');
+            info.id='bookmarkletInfo';
+            info.style.marginTop='0.5rem';
+            info.style.fontSize='0.8rem';
+            info.style.color='#555';
+            outputHeader.appendChild(info);
+        }
+        info.innerHTML = `拖动或右键复制下面的链接到书签栏：<a href="${bookmarklet}" style="color:#e52e71;font-weight:600;" title="拖动我到书签栏">🔖 Copilot批量发送</a>`;
+        this.showSuccessMessage('Bookmarklet 已生成');
+    }
+
     async copyToClipboard(text) {
         try {
             if (navigator.clipboard && window.isSecureContext) {
@@ -424,6 +511,7 @@ class CopilotLinkGenerator {
         this.generatedUrls = []; // Clear stored URLs
         this.resetOpenAllButton(); // Reset button state
         this.clearHelpElements(); // Clear help elements
+        this.updateScriptPreview();
     }
 
     clearHelpElements() {
@@ -566,6 +654,113 @@ class CopilotLinkGenerator {
     getPrompts() {
         const text = this.promptInput.value.trim();
         return text ? text.split('\n').map(line => line.trim()).filter(line => line.length > 0) : [];
+    }
+
+    // ====== Added: automation script preview & i18n ======
+    getDelay() {
+        if (!this.delayInput) return 2500;
+        const v = parseInt(this.delayInput.value, 10);
+        return isNaN(v) ? 2500 : Math.max(300, v);
+    }
+    getMaxCount() {
+        if (!this.maxCountInput) return 100;
+        const v = parseInt(this.maxCountInput.value, 10);
+        return isNaN(v) ? 100 : Math.max(1, Math.min(100, v));
+    }
+    applyMaxCount(prompts) {
+        const max = this.getMaxCount();
+        if (prompts.length > max) {
+            return { prompts: prompts.slice(0, max), truncated: true };
+        }
+        return { prompts, truncated: false };
+    }
+    buildAutomationScript(prompts) {
+        const delay = this.getDelay();
+        const escapedPrompts = prompts.map(p => p.replace(/`/g, '\\`'));
+        return `// === ${this.t('autoScriptTitle')} ===\n// ${this.t('autoScriptUsage', {count:prompts.length})}\n(async () => {\n  const prompts = [\n    ${escapedPrompts.map(p => `\`${p}\``).join(',\n    ')}\n  ];\n  const delay = (ms) => new Promise(r => setTimeout(r, ms));\n  const findInput = () => document.querySelector('textarea, [contenteditable="true"]');\n  let stop = false;\n  window.addEventListener('keydown', e => { if (e.key === 'Escape') { stop = true; console.warn('${this.t('stopped')}'); } });\n  for (let i = 0; i < prompts.length; i++) {\n    if (stop) break;\n    const p = prompts[i];\n    let inputEl = findInput();\n    if (!inputEl) { console.error('${this.t('noInput')}'); break; }\n    if (inputEl.tagName === 'TEXTAREA') { inputEl.value = p; inputEl.dispatchEvent(new Event('input', { bubbles: true })); }\n    else { inputEl.textContent = p; inputEl.dispatchEvent(new Event('input', { bubbles: true })); }\n    await delay(200);\n    const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', which: 13, keyCode: 13, bubbles: true });\n    inputEl.dispatchEvent(enterEvent);\n    console.log('${this.t('sentPrompt')}', i + 1, '/', prompts.length);\n    await delay(${delay});\n  }\n  console.log('${this.t('allDone')}');\n})();`;
+    }
+    updateScriptPreview() {
+        if (!this.scriptPreview) return;
+        const prompts = this.getPrompts();
+        if (!prompts.length) {
+            this.scriptPreview.textContent = this.t('previewEmpty');
+            return;
+        }
+        const limited = this.applyMaxCount(prompts);
+        this.scriptPreview.textContent = this.buildAutomationScript(limited.prompts).substring(0, 4000);
+    }
+    togglePreview() {
+        if (!this.scriptPreview) return;
+        const collapsed = this.scriptPreview.classList.toggle('collapsed');
+        if (this.togglePreviewBtn) this.togglePreviewBtn.textContent = collapsed ? '📂 展开' : '📂 折叠';
+    }
+    toggleAdvanced() {
+        if (!this.advancedPanel) return;
+        const visible = this.advancedPanel.style.display !== 'none';
+        this.advancedPanel.style.display = visible ? 'none' : 'block';
+        if (this.advancedToggleBtn) this.advancedToggleBtn.textContent = visible ? '⚙️ Advanced' : '⚙️ Hide';
+    }
+    copyPreviewScript() {
+        if (!this.scriptPreview) return;
+        const txt = this.scriptPreview.textContent;
+        if (!txt.trim()) return;
+        this.copyToClipboard(txt);
+        this.showSuccessMessage(this.t('copiedPreview'));
+    }
+    i18n = {
+        zh: {
+            autoScriptTitle: 'Copilot 自动发送脚本',
+            autoScriptUsage: ({count}) => `用法: 在单个 Copilot 页面 Console 粘贴后执行; 共 ${count} 条, 按 Esc 停止`,
+            stopped: '已停止',
+            noInput: '未找到输入框',
+            sentPrompt: '已发送 Prompt',
+            allDone: '全部完成',
+            previewEmpty: '暂无脚本预览（请输入 Prompt）',
+            copiedPreview: '预览脚本已复制 ✅'
+        },
+        en: {
+            autoScriptTitle: 'Copilot Auto Sender Script',
+            autoScriptUsage: ({count}) => `Usage: Paste into Copilot console; ${count} prompts; Esc to stop`,
+            stopped: 'Stopped',
+            noInput: 'Input element not found',
+            sentPrompt: 'Sent prompt',
+            allDone: 'Done',
+            previewEmpty: 'No script preview (enter prompts)',
+            copiedPreview: 'Preview script copied ✅'
+        }
+    };
+    currentLang = 'zh';
+    t(key, params = {}) {
+        const pack = this.i18n[this.currentLang];
+        const val = pack[key];
+        return typeof val === 'function' ? val(params) : val;
+    }
+    toggleLanguage() {
+        this.currentLang = this.currentLang === 'zh' ? 'en' : 'zh';
+        this.updateLangTexts();
+        this.updateScriptPreview();
+        try { localStorage.setItem('copilot_lang', this.currentLang); } catch(_) {}
+    }
+    updateLangTexts() {
+        const mapping = {
+            promptLabel: { selector: 'label[for="promptInput"]', zh: '输入你的 Prompts (每行一个, 最多 10):', en: 'Enter your prompts (one per line, up to 10):' },
+            generateBtn: { selector: '#generateBtn', zh: '✨ 生成链接', en: '✨ Generate Links' },
+            clearBtn: { selector: '#clearBtn', zh: '🗑️ 清空', en: '🗑️ Clear All' },
+            note: { selector: '.note', zh: '💡 每个链接会打开一个新的 Copilot 对话并预填你的 Prompt', en: '💡 Each link opens a new Copilot chat with your prompt pre-filled' },
+            outputTitle: { selector: '.output-header h3', zh: '生成的链接', en: 'Generated Links' },
+            openAllBtn: { selector: '#openAllBtn', zh: '🚀 打开全部链接', en: '🚀 Open All Links' },
+            copyAllBtn: { selector: '#copyAllBtn', zh: '📋 复制全部链接', en: '📋 Copy All Links' },
+            copyAutomationBtn: { selector: '#copyAutomationBtn', zh: '🛠️ 复制自动脚本', en: '🛠️ Copy Auto Script' },
+            bookmarkletBtn: { selector: '#bookmarkletBtn', zh: '🔖 生成 Bookmarklet', en: '🔖 Bookmarklet' },
+            delayLabel: { selector: '.delay-label', zh: '发送间隔(ms):', en: 'Delay(ms):' },
+            previewTitle: { selector: '.preview-title', zh: '脚本预览 / Script Preview', en: 'Script Preview' }
+        };
+        Object.values(mapping).forEach(item => {
+            const el = document.querySelector(item.selector);
+            if (el) el.textContent = item[this.currentLang];
+        });
+        if (this.langToggleBtn) this.langToggleBtn.textContent = this.currentLang === 'zh' ? '🌐 中文 / EN' : '🌐 EN / 中文';
+        if (this.togglePreviewBtn) this.togglePreviewBtn.textContent = this.scriptPreview && this.scriptPreview.classList.contains('collapsed') ? (this.currentLang==='zh'?'📂 展开':'📂 Expand') : (this.currentLang==='zh'?'📂 折叠':'📂 Collapse');
     }
 }
 
